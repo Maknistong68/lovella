@@ -7,7 +7,10 @@
       "Bash(gh:*)",
       "Bash(git ls-remote:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nInitial commit: Lovella date-ask app\n\nReact + Vite + Tailwind single-page app with a playful runaway NO button,\nheart confetti on YES, and resilient response storage \\(Supabase with\nlocalStorage backup + retry queue\\). Hardened for in-app browsers\n\\(TikTok/Messenger/IG\\) via a bounded play-area for the NO button.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)"
     ]
   }
 }

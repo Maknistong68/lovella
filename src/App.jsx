@@ -3,31 +3,23 @@ import confetti from 'canvas-confetti'
 import { saveResponse, getSavedAnswer, flushPending } from './lib/supabase'
 import PhotoGrid from './components/PhotoGrid'
 
-// NO button text cycles as it runs away. Last one is clickable for real.
-const NO_LABELS = [
-  'No',
-  'Sigurado ka?',
-  'Isipin mo muna',
-  'Ang tigas naman',
-  'Last chance',
-  'Ok fine',
-]
-
-const EVASIONS_BEFORE_CLICKABLE = NO_LABELS.length - 1 // 5 dodges, then clickable
+// Just 2 gentle, playful hops — not a frustrating chase. Then it's clickable.
+const MAX_DODGES = 2
 
 export default function App() {
-  const [evasions, setEvasions] = useState(0)
+  const [dodges, setDodges] = useState(0)
+  const [stage, setStage] = useState('ask') // 'ask' | 'second'
   const [result, setResult] = useState(null) // 'yes' | 'no' | null
   const [returning, setReturning] = useState(false) // answered on a previous visit
   const [noPos, setNoPos] = useState(null) // {top, left} within the play area
-  const submittingRef = useRef(false) // guards against double submit
+  const submittingRef = useRef(false)
   const noRef = useRef(null)
-  const playRef = useRef(null) // the bounded area the NO button runs inside
+  const playRef = useRef(null) // bounded box the NO button runs inside
 
-  const noClickable = evasions >= EVASIONS_BEFORE_CLICKABLE
-  const noLabel = NO_LABELS[Math.min(evasions, NO_LABELS.length - 1)]
+  const noClickable = dodges >= MAX_DODGES
+  const noLabel = dodges === 0 ? 'Hindi' : dodges === 1 ? 'Uy, teka... 🥺' : 'Hindi'
 
-  // On load: if she already answered, show that. Also retry any queued saves.
+  // On load: restore a previous answer; retry any queued saves.
   useEffect(() => {
     const prev = getSavedAnswer()
     if (prev === 'yes' || prev === 'no') {
@@ -37,7 +29,7 @@ export default function App() {
     flushPending()
   }, [])
 
-  // Keep the runaway button inside the play area if the viewport changes.
+  // Keep the runaway button inside the box if the screen rotates/resizes.
   useEffect(() => {
     const onResize = () => {
       setNoPos((p) => {
@@ -58,8 +50,7 @@ export default function App() {
     }
   }, [])
 
-  // Move the NO button to a random spot INSIDE the bounded play area.
-  // (Contained, not fullscreen — so it can never hide behind in-app browser UI.)
+  // Move NO to a random spot INSIDE the bounded, always-visible box.
   const dodge = useCallback(() => {
     if (noClickable) return
     const play = playRef.current
@@ -69,7 +60,7 @@ export default function App() {
       const maxTop = Math.max(0, play.clientHeight - btn.offsetHeight)
       setNoPos({ left: Math.random() * maxLeft, top: Math.random() * maxTop })
     }
-    setEvasions((e) => e + 1)
+    setDodges((d) => d + 1)
   }, [noClickable])
 
   const fireConfetti = () => {
@@ -82,45 +73,46 @@ export default function App() {
     })()
   }
 
-  // Submit once; celebrate immediately, persist in the background.
   const submit = useCallback((answer) => {
     if (submittingRef.current) return
     submittingRef.current = true
     if (answer === 'yes') fireConfetti()
     setResult(answer)
-    saveResponse(answer) // fire-and-forget; storage layer handles failures
+    saveResponse(answer)
   }, [])
 
   const handleYes = () => submit('yes')
 
+  // First NO: dodge a couple times (playful), then open the gentle second chance.
   const handleNo = () => {
     if (!noClickable) {
       dodge()
       return
     }
-    submit('no')
+    setStage('second')
   }
 
   return (
     <div className="min-h-full w-full bg-gradient-to-b from-amber-200 via-orange-300 to-rose-300 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
-        {!result && (
+        {/* ---------- STAGE 1: the question ---------- */}
+        {!result && stage === 'ask' && (
           <div className="text-center">
             <PhotoGrid />
 
             <h1 className="mt-7 text-3xl sm:text-4xl font-extrabold text-rose-900 leading-tight tracking-tight">
-              Pwede ba tayo mag spend ng time?
+              Pwede ba tayong mag-spend ng time, kahit minsan?
             </h1>
-            <p className="mt-2 text-rose-800/70 text-sm">Can we spend some time together?</p>
+            <p className="mt-3 text-rose-800/70 text-sm">Walang pressure, ha. 💛</p>
 
-            {/* Bounded play area: the NO button can only run inside this box,
-                so it stays visible in TikTok/Messenger/IG in-app browsers. */}
-            <div ref={playRef} className="relative mx-auto mt-8 h-60 w-full max-w-sm">
+            {/* Bounded play area — NO button can only move inside this box,
+                so it stays visible on phones and in TikTok/Messenger browsers. */}
+            <div ref={playRef} className="relative mx-auto mt-8 h-56 w-full max-w-sm">
               <button
                 onClick={handleYes}
-                className="absolute left-1/2 top-4 -translate-x-1/2 rounded-2xl bg-rose-600 px-12 py-4 text-lg font-bold text-white shadow-lg shadow-rose-600/30 transition-transform active:scale-95 hover:bg-rose-500"
+                className="absolute left-1/2 top-4 -translate-x-1/2 rounded-2xl bg-rose-600 px-14 py-4 text-lg font-bold text-white shadow-lg shadow-rose-600/30 transition-transform active:scale-95 hover:bg-rose-500"
               >
-                Yes
+                Oo
               </button>
 
               <button
@@ -141,32 +133,57 @@ export default function App() {
                 {noLabel}
               </button>
             </div>
-
-            {evasions > 0 && !noClickable && (
-              <p className="mt-2 text-rose-800/60 text-xs italic">(subukan mo pa) 😏</p>
-            )}
           </div>
         )}
 
+        {/* ---------- STAGE 2: gentle second chance ---------- */}
+        {!result && stage === 'second' && (
+          <div className="text-center animate-[fadeIn_0.4s_ease]">
+            <div className="text-5xl">🥺</div>
+            <h2 className="mt-4 text-3xl font-extrabold text-rose-900">Aww, talaga?</h2>
+            <p className="mt-2 text-rose-800/80">Isa pa ngang chance? 💛</p>
+
+            <div className="mt-8 flex flex-col items-center gap-4">
+              <button
+                onClick={handleYes}
+                className="rounded-2xl bg-rose-600 px-12 py-4 text-lg font-bold text-white shadow-lg shadow-rose-600/30 transition-transform active:scale-95 hover:bg-rose-500"
+              >
+                Sige, Oo na 💛
+              </button>
+
+              {/* A real, easy NO — no dodging, no guilt. */}
+              <button
+                onClick={() => submit('no')}
+                className="text-sm font-medium text-rose-800/60 underline underline-offset-4 hover:text-rose-800"
+              >
+                Hindi muna ngayon
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ---------- RESULT: yes ---------- */}
         {result === 'yes' && (
           <div className="text-center animate-[fadeIn_0.4s_ease]">
             <div className="text-6xl">🎉</div>
             <h2 className="mt-4 text-3xl font-extrabold text-rose-900">
-              {returning ? 'Yes pa rin! 💛' : 'Yes! Salamat.'}
+              {returning ? 'Oo pa rin pala! 💛' : 'Yey! Salamat 💛'}
             </h2>
             <p className="mt-2 text-lg text-rose-800">
-              {returning ? 'Excited na ako. See you soon.' : 'See you soon. 💛'}
+              {returning ? 'Excited na ako, ha.' : 'Kitakits tayo, ha?'}
             </p>
           </div>
         )}
 
+        {/* ---------- RESULT: no (kind, zero guilt) ---------- */}
         {result === 'no' && (
           <div className="text-center animate-[fadeIn_0.4s_ease]">
-            <div className="text-5xl">🙂</div>
-            <h2 className="mt-4 text-2xl font-bold text-rose-900">Sige, sa susunod nalang.</h2>
-            {returning && (
-              <p className="mt-2 text-sm text-rose-800/70">(nandito pa rin ako kung magbago isip mo)</p>
-            )}
+            <div className="text-5xl">💛</div>
+            <h2 className="mt-4 text-2xl font-bold text-rose-900">Okay lang 'yan.</h2>
+            <p className="mt-2 text-rose-800/80">
+              Walang pressure. Salamat pa rin sa panahon mo.
+            </p>
+            <p className="mt-1 text-sm text-rose-800/60">Nandito lang ako, kahit kailan.</p>
           </div>
         )}
       </div>
