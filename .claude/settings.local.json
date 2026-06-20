@@ -14,7 +14,9 @@
       "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nMake copy all-Tagalog, gentler, and mobile-safe\n\n- All on-screen text now in Tagalog \\(\"kahit minsan\", \"walang pressure\"\\)\n- Replace 6-dodge chase with 2 gentle hops so the NO button stays\n  visible and tappable on phones / in-app browsers\n- Add soft, no-guilt second-chance flow when NO is tapped\n- Kind, pressure-free ending for a real \"no\"\n- Update page title / link-preview text to Tagalog\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(vercel:*)",
       "Bash(done)",
-      "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nUse a single smaller photo and tighten button layout\n\n- Replace 4-photo grid with one compact centered portrait \\(public/photos/her.jpg\\)\n- Move Oo and Hindi closer together in a smaller play area\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nUse a single smaller photo and tighten button layout\n\n- Replace 4-photo grid with one compact centered portrait \\(public/photos/her.jpg\\)\n- Move Oo and Hindi closer together in a smaller play area\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git mv:*)",
+      "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nRename photo to her.png and point the app at it\n\n- Rename uploaded screenshot to a web-safe filename \\(no spaces\\)\n- Update photo path and og:image to /photos/her.png\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

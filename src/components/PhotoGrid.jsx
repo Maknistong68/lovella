@@ -1,6 +1,6 @@
 // Single photo shown above the question.
-// To use your own photo: save the image as  public/photos/her.jpg
-const PHOTO = '/photos/her.jpg'
+// To use your own photo: save the image as  public/photos/her.png
+const PHOTO = '/photos/her.png'
 
 export default function PhotoGrid() {
   return (
