@@ -16,7 +16,8 @@
       "Bash(done)",
       "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nUse a single smaller photo and tighten button layout\n\n- Replace 4-photo grid with one compact centered portrait \\(public/photos/her.jpg\\)\n- Move Oo and Hindi closer together in a smaller play area\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git mv:*)",
-      "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nRename photo to her.png and point the app at it\n\n- Rename uploaded screenshot to a web-safe filename \\(no spaces\\)\n- Update photo path and og:image to /photos/her.png\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nRename photo to her.png and point the app at it\n\n- Rename uploaded screenshot to a web-safe filename \\(no spaces\\)\n- Update photo path and og:image to /photos/her.png\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nTurn the NO button into a full-screen chase game\n\n- 9 dodges before it gives up \\(was 2\\)\n- Whole-screen leaps to the opposite side each time\n- Desktop proximity dodge: bolts when the cursor gets near\n- Difficulty ramp: shrinks, tilts, and speeds up as the chase goes on\n- Escalating Tagalog taunts + live catch counter \\(n/9\\)\n- Pulsing Oo button to stay tempting\n- Safe-zone clamping so it never hides behind mobile browser bars;\n  returns home and becomes clickable once it surrenders\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
