@@ -3,17 +3,21 @@ import confetti from 'canvas-confetti'
 import { saveResponse, getSavedAnswer, getSavedDetail, flushPending } from './lib/supabase'
 import PhotoGrid from './components/PhotoGrid'
 
-const MAX_DODGES = 9
-const NO_TAUNTS = ['Hindi', 'Hala!', 'Bilis!', 'Di abot!', 'Sayang!', 'Muntik na!', 'Ang kulit!', 'Sige pa!', 'Halos na!']
-const PAD_X = 16
-const PAD_TOP = 80
-const PAD_BOTTOM = 28
+const MAX_DODGES = 13
+const NO_TAUNTS = [
+  'Hindi', 'Hala!', 'Bilis!', 'Di abot!', 'Sayang!', 'Muntik na!', 'Ang kulit!',
+  'Sige pa!', 'Halos na!', 'Hindi talaga!', 'Wag na!', 'Sobra ka!', 'Hala ka!',
+]
+const PAD_X = 12
+const PAD_TOP = 64
+const PAD_BOTTOM = 24
 
 // Activity options (each detail step also allows a typed custom answer).
 const ACTIVITIES = [
-  { id: 'Coffee', emoji: '☕', q: 'Saan tayo kape?', options: ["Dunkin'", 'Corniche', 'Starbucks'] },
-  { id: 'Dinner', emoji: '🍽️', q: 'Saan tayo kakain?', options: ['Almina', 'Time Out'] },
-  { id: 'Late night drive', emoji: '🚗', q: 'Gaano katagal?', options: ['30 minutes', '1 oras', '3 oras'] },
+  { id: 'Spider-Man: Brand New Day', label: 'Spider-Man movie', emoji: '🕷️', q: 'Saang sinehan?', options: ['VOX Cinemas', 'Muvi Cinemas', 'AMC'] },
+  { id: 'Coffee', label: 'Coffee', emoji: '☕', q: 'Saan tayo kape?', options: ["Dunkin'", 'Corniche', 'Starbucks'] },
+  { id: 'Dinner', label: 'Dinner', emoji: '🍽️', q: 'Saan tayo kakain?', options: ['Almina', 'Time Out'] },
+  { id: 'Late night drive', label: 'Late night drive', emoji: '🚗', q: 'Gaano katagal?', options: ['30 minutes', '1 oras', '3 oras'] },
 ]
 
 function formatWhen(date, time) {
@@ -87,15 +91,17 @@ export default function App() {
       const minT = PAD_TOP
       const maxT = Math.max(minT, vh - h - PAD_BOTTOM)
       const cur = posRef.current
-      const goLeft = !cur || cur.left > vw / 2
-      const goUp = !cur || cur.top > vh / 2
-      const left = goLeft
-        ? minL + Math.random() * Math.max(0, vw * 0.42 - minL)
-        : Math.min(maxL, vw * 0.55 + Math.random() * Math.max(0, maxL - vw * 0.55))
-      const top = goUp
-        ? minT + Math.random() * Math.max(0, vh * 0.45 - minT)
-        : Math.min(maxT, vh * 0.55 + Math.random() * Math.max(0, maxT - vh * 0.55))
-      const pos = { left, top, rot: Math.random() * 26 - 13 }
+      // Uniform-random anywhere on screen (corners included), but force a big
+      // jump away from the current spot so it never clusters in one area.
+      const minJump = Math.min(maxL - minL, maxT - minT) * 0.55
+      let left = minL
+      let top = minT
+      for (let i = 0; i < 12; i++) {
+        left = minL + Math.random() * (maxL - minL)
+        top = minT + Math.random() * (maxT - minT)
+        if (!cur || Math.hypot(left - cur.left, top - cur.top) >= minJump) break
+      }
+      const pos = { left, top, rot: Math.random() * 30 - 15 }
       posRef.current = pos
       setNoPos(pos)
     }
@@ -249,11 +255,6 @@ export default function App() {
               </button>
             </div>
 
-            {dodges > 0 && !noClickable && (
-              <p className="mt-5 text-rose-800/70 text-sm font-semibold">
-                Hulihin mo ang “Hindi”! 😜 ({dodges}/{MAX_DODGES})
-              </p>
-            )}
             {noClickable && (
               <p className="mt-5 text-rose-800/70 text-sm italic animate-[fadeIn_0.4s_ease]">
                 Ayan... sumuko na ako. 😅
@@ -291,7 +292,8 @@ export default function App() {
             {/* step 1: activity */}
             {planStep === 'activity' && (
               <>
-                <h2 className="text-2xl font-extrabold text-rose-900">Yey! 💛 Anong gusto mo?</h2>
+                <button onClick={() => setStage('ask')} className="text-sm text-rose-800/60 hover:text-rose-800">‹ Bumalik</button>
+                <h2 className="mt-2 text-2xl font-extrabold text-rose-900">Yey! 💛 Anong gusto mo?</h2>
                 <p className="mt-1 text-rose-800/70 text-sm">Ikaw bahala, ha.</p>
                 <div className="mt-7 flex flex-col gap-3">
                   {ACTIVITIES.map((a) => (
@@ -300,7 +302,7 @@ export default function App() {
                       onClick={() => chooseActivity(a)}
                       className="rounded-2xl bg-white/85 px-6 py-4 text-lg font-bold text-rose-700 shadow-md transition-transform active:scale-95 hover:bg-white"
                     >
-                      {a.emoji} {a.id}
+                      {a.emoji} {a.label}
                     </button>
                   ))}
                 </div>
@@ -367,12 +369,41 @@ export default function App() {
                   </label>
                 </div>
                 <button
-                  onClick={confirmPlan}
+                  onClick={() => setPlanStep('review')}
                   disabled={!meetDate || !meetTime}
                   className="mt-7 w-full rounded-2xl bg-rose-600 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-rose-600/30 transition active:scale-95 hover:bg-rose-500 disabled:opacity-40"
                 >
-                  Tara na! 💛
+                  Tuloy 💛
                 </button>
+              </>
+            )}
+
+            {/* step 4: review + SUBMIT (the only way it gets sent) */}
+            {planStep === 'review' && (
+              <>
+                <button onClick={() => setPlanStep('when')} className="text-sm text-rose-800/60 hover:text-rose-800">‹ Bumalik</button>
+                <h2 className="mt-2 text-2xl font-extrabold text-rose-900">I-check natin 👀</h2>
+                <div className="mt-5 rounded-2xl bg-white/70 p-5 text-left text-rose-900 shadow-sm">
+                  <div className="flex justify-between gap-3 py-1">
+                    <span className="text-rose-800/60">Gagawin</span>
+                    <span className="font-bold text-right">{activity?.emoji} {activity?.id}</span>
+                  </div>
+                  <div className="flex justify-between gap-3 py-1 border-t border-rose-900/10">
+                    <span className="text-rose-800/60">{activity?.id === 'Late night drive' ? 'Tagal' : 'Lugar'}</span>
+                    <span className="font-bold text-right">{place}</span>
+                  </div>
+                  <div className="flex justify-between gap-3 py-1 border-t border-rose-900/10">
+                    <span className="text-rose-800/60">Kailan</span>
+                    <span className="font-bold text-right">{formatWhen(meetDate, meetTime)}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={confirmPlan}
+                  className="mt-6 w-full rounded-2xl bg-rose-600 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-rose-600/30 transition active:scale-95 hover:bg-rose-500"
+                >
+                  I-submit 💛
+                </button>
+                <p className="mt-3 text-xs text-rose-800/50">Pindutin ang Submit para matanggap niya. 😊</p>
               </>
             )}
           </div>
@@ -402,10 +433,9 @@ export default function App() {
         {/* ===== RESULT: no ===== */}
         {result === 'no' && (
           <div className="text-center animate-[fadeIn_0.4s_ease]">
-            <div className="text-5xl">💛</div>
+            <div className="text-5xl">🤙</div>
             <h2 className="mt-4 text-2xl font-bold text-rose-900">Okay lang 'yan.</h2>
-            <p className="mt-2 text-rose-800/80">Walang pressure. Salamat pa rin sa panahon mo.</p>
-            <p className="mt-1 text-sm text-rose-800/60">Nandito lang ako, kahit kailan.</p>
+            <p className="mt-2 text-rose-800/80">Walang problema, ingat ka!</p>
           </div>
         )}
       </div>

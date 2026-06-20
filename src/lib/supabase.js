@@ -12,9 +12,50 @@ const LOCAL_KEY = 'lovella_responses' // full log, every submit
 const PENDING_KEY = 'lovella_pending' // answers that didn't reach Supabase yet
 const ANSWER_KEY = 'lovella_answer' // her final answer (for return visits)
 const DETAIL_KEY = 'lovella_detail' // her full plan (for return visits)
+const DEVICE_KEY = 'lovella_device_id' // persistent per-browser/per-phone id
 
 // Columns we send to Supabase (must match the table schema).
-const COLUMNS = ['response', 'activity', 'place', 'meet_date', 'meet_time']
+const COLUMNS = ['response', 'activity', 'place', 'meet_date', 'meet_time', 'device_id', 'audit']
+
+/* ---------- audit trail (no sign-in, no IMEI — that's impossible in a browser) ----------
+ * Instead we use a persistent device id + a device fingerprint so the same
+ * browser on the same phone is recognised across visits. */
+export function getDeviceId() {
+  try {
+    let id = localStorage.getItem(DEVICE_KEY)
+    if (!id) {
+      id = (crypto?.randomUUID && crypto.randomUUID()) || `dev_${Date.now()}_${Math.random().toString(36).slice(2)}`
+      localStorage.setItem(DEVICE_KEY, id)
+    }
+    return id
+  } catch {
+    return 'no-storage'
+  }
+}
+
+function collectAudit() {
+  try {
+    const n = navigator
+    return {
+      user_agent: n.userAgent,
+      platform: n.platform,
+      vendor: n.vendor,
+      language: n.language,
+      languages: Array.isArray(n.languages) ? n.languages.join(',') : '',
+      screen: `${window.screen?.width || 0}x${window.screen?.height || 0}`,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      pixel_ratio: window.devicePixelRatio || 1,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      touch: 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0,
+      max_touch_points: navigator.maxTouchPoints || 0,
+      submitted_at: new Date().toISOString(),
+      url: window.location.href,
+      referrer: document.referrer || '',
+    }
+  } catch {
+    return { submitted_at: new Date().toISOString() }
+  }
+}
 
 /* ---------- small safe localStorage helpers ---------- */
 function readJSON(key) {
@@ -121,7 +162,9 @@ export async function flushPending() {
  *   3. try Supabase; on failure, queue it for retry
  * Accepts: { response, activity?, place?, meet_date?, meet_time? }
  */
-export async function saveResponse(payload) {
+export async function saveResponse(input) {
+  // Stamp every submission with the audit trail before storing/sending.
+  const payload = { ...input, device_id: getDeviceId(), audit: collectAudit() }
   const record = { ...payload, created_at: new Date().toISOString() }
 
   const log = readJSON(LOCAL_KEY)
