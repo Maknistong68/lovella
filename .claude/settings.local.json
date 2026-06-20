@@ -10,7 +10,11 @@
       "Bash(git add:*)",
       "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nInitial commit: Lovella date-ask app\n\nReact + Vite + Tailwind single-page app with a playful runaway NO button,\nheart confetti on YES, and resilient response storage \\(Supabase with\nlocalStorage backup + retry queue\\). Hardened for in-app browsers\n\\(TikTok/Messenger/IG\\) via a bounded play-area for the NO button.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git remote add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nMake copy all-Tagalog, gentler, and mobile-safe\n\n- All on-screen text now in Tagalog \\(\"kahit minsan\", \"walang pressure\"\\)\n- Replace 6-dodge chase with 2 gentle hops so the NO button stays\n  visible and tappable on phones / in-app browsers\n- Add soft, no-guilt second-chance flow when NO is tapped\n- Kind, pressure-free ending for a real \"no\"\n- Update page title / link-preview text to Tagalog\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(vercel:*)",
+      "Bash(done)",
+      "Bash(git -c user.name=\"Maknistong68\" -c user.email=\"Maknistong68@users.noreply.github.com\" commit -m \"$\\(cat <<''EOF''\nUse a single smaller photo and tighten button layout\n\n- Replace 4-photo grid with one compact centered portrait \\(public/photos/her.jpg\\)\n- Move Oo and Hindi closer together in a smaller play area\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

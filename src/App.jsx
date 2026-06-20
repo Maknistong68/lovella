@@ -106,11 +106,12 @@ export default function App() {
             <p className="mt-3 text-rose-800/70 text-sm">Walang pressure, ha. 💛</p>
 
             {/* Bounded play area — NO button can only move inside this box,
-                so it stays visible on phones and in TikTok/Messenger browsers. */}
-            <div ref={playRef} className="relative mx-auto mt-8 h-56 w-full max-w-sm">
+                so it stays visible on phones and in TikTok/Messenger browsers.
+                Kept compact so Oo and Hindi sit close together. */}
+            <div ref={playRef} className="relative mx-auto mt-7 h-36 w-full max-w-[16rem]">
               <button
                 onClick={handleYes}
-                className="absolute left-1/2 top-4 -translate-x-1/2 rounded-2xl bg-rose-600 px-14 py-4 text-lg font-bold text-white shadow-lg shadow-rose-600/30 transition-transform active:scale-95 hover:bg-rose-500"
+                className="absolute left-1/2 top-1 -translate-x-1/2 rounded-2xl bg-rose-600 px-12 py-3 text-lg font-bold text-white shadow-lg shadow-rose-600/30 transition-transform active:scale-95 hover:bg-rose-500"
               >
                 Oo
               </button>
@@ -126,8 +127,8 @@ export default function App() {
                   }
                 }}
                 style={noPos ? { position: 'absolute', left: noPos.left, top: noPos.top } : undefined}
-                className={`absolute rounded-2xl px-8 py-4 text-lg font-bold shadow-md transition-all duration-200 ease-out ${
-                  noPos ? '' : 'bottom-4 left-1/2 -translate-x-1/2'
+                className={`absolute rounded-2xl px-7 py-3 text-lg font-bold shadow-md transition-all duration-200 ease-out ${
+                  noPos ? '' : 'top-16 left-1/2 -translate-x-1/2'
                 } ${noClickable ? 'bg-white text-rose-700 hover:bg-rose-50' : 'bg-white/80 text-rose-500'}`}
               >
                 {noLabel}
