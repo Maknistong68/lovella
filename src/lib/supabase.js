@@ -11,6 +11,10 @@ export const isSupabaseEnabled = !!supabase
 const LOCAL_KEY = 'lovella_responses' // full log, every submit
 const PENDING_KEY = 'lovella_pending' // answers that didn't reach Supabase yet
 const ANSWER_KEY = 'lovella_answer' // her final answer (for return visits)
+const DETAIL_KEY = 'lovella_detail' // her full plan (for return visits)
+
+// Columns we send to Supabase (must match the table schema).
+const COLUMNS = ['response', 'activity', 'place', 'meet_date', 'meet_time']
 
 /* ---------- small safe localStorage helpers ---------- */
 function readJSON(key) {
@@ -28,7 +32,7 @@ function writeJSON(key, value) {
   }
 }
 
-/* ---------- public helpers ---------- */
+/* ---------- return-visit helpers ---------- */
 export function getSavedAnswer() {
   try {
     return localStorage.getItem(ANSWER_KEY)
@@ -37,18 +41,36 @@ export function getSavedAnswer() {
   }
 }
 
-function rememberAnswer(response) {
+export function getSavedDetail() {
   try {
-    localStorage.setItem(ANSWER_KEY, response)
+    return JSON.parse(localStorage.getItem(DETAIL_KEY) || 'null')
+  } catch {
+    return null
+  }
+}
+
+function remember(payload) {
+  try {
+    localStorage.setItem(ANSWER_KEY, payload.response)
+    localStorage.setItem(DETAIL_KEY, JSON.stringify(payload))
   } catch {
     /* ignore */
   }
 }
 
-async function insertSupabase(response) {
+// Keep only the table columns (drop undefined/extra keys).
+function toRow(payload) {
+  const row = {}
+  for (const key of COLUMNS) {
+    if (payload[key] !== undefined && payload[key] !== '') row[key] = payload[key]
+  }
+  return row
+}
+
+async function insertSupabase(payload) {
   if (!supabase) return { ok: false, reason: 'not-configured' }
   try {
-    const { error } = await supabase.from('responses').insert({ response })
+    const { error } = await supabase.from('responses').insert(toRow(payload))
     if (error) return { ok: false, reason: error.message }
     return { ok: true }
   } catch (e) {
@@ -56,20 +78,23 @@ async function insertSupabase(response) {
   }
 }
 
-// Best-effort ping to you (Telegram bot URL, Discord webhook, etc.).
-async function notify(response) {
+// Best-effort ping (Telegram bot URL, Discord webhook, etc.). Optional.
+async function notify(payload) {
   if (!notifyWebhook) return
-  const payload = {
-    // works for Discord ("content") and generic webhooks ("text")
-    content: `Lovella answered: ${response.toUpperCase()} — ${new Date().toLocaleString()}`,
-    text: `Lovella answered: ${response.toUpperCase()} — ${new Date().toLocaleString()}`,
-  }
+  const parts = [
+    `Sagot: ${payload.response.toUpperCase()}`,
+    payload.activity && `Aktibidad: ${payload.activity}`,
+    payload.place && `Lugar/Tagal: ${payload.place}`,
+    payload.meet_date && `Petsa: ${payload.meet_date}`,
+    payload.meet_time && `Oras: ${payload.meet_time}`,
+  ].filter(Boolean)
+  const text = parts.join(' | ')
   try {
     await fetch(notifyWebhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      keepalive: true, // still sends if the tab closes right after
+      body: JSON.stringify({ content: text, text }),
+      keepalive: true,
     })
   } catch {
     /* never block the user on a failed ping */
@@ -83,33 +108,33 @@ export async function flushPending() {
   if (!pending.length) return
   const stillPending = []
   for (const rec of pending) {
-    const res = await insertSupabase(rec.response)
+    const res = await insertSupabase(rec)
     if (!res.ok) stillPending.push(rec)
   }
   writeJSON(PENDING_KEY, stillPending)
 }
 
 /**
- * Save an answer. Designed so the answer is NEVER lost:
+ * Save an answer (object). Designed so the answer is NEVER lost:
  *   1. write locally + remember it immediately
  *   2. fire the notification (non-blocking)
  *   3. try Supabase; on failure, queue it for retry
- * Returns fast — the UI celebration should not wait on the network.
+ * Accepts: { response, activity?, place?, meet_date?, meet_time? }
  */
-export async function saveResponse(response) {
-  const record = { response, created_at: new Date().toISOString() }
+export async function saveResponse(payload) {
+  const record = { ...payload, created_at: new Date().toISOString() }
 
   const log = readJSON(LOCAL_KEY)
   log.push(record)
   writeJSON(LOCAL_KEY, log)
-  rememberAnswer(response)
+  remember(payload)
 
-  notify(response)
+  notify(payload)
 
-  const res = await insertSupabase(response)
+  const res = await insertSupabase(payload)
   if (!res.ok && supabase) {
     const pending = readJSON(PENDING_KEY)
-    pending.push(record)
+    pending.push(payload)
     writeJSON(PENDING_KEY, pending)
     return { ok: true, stored: 'queued' }
   }

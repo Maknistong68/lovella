@@ -1,25 +1,48 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import confetti from 'canvas-confetti'
-import { saveResponse, getSavedAnswer, flushPending } from './lib/supabase'
+import { saveResponse, getSavedAnswer, getSavedDetail, flushPending } from './lib/supabase'
 import PhotoGrid from './components/PhotoGrid'
 
-// How many times it bolts before it finally gives up and stays put.
 const MAX_DODGES = 9
-
-// Escalating playful taunts shown ON the running button.
 const NO_TAUNTS = ['Hindi', 'Hala!', 'Bilis!', 'Di abot!', 'Sayang!', 'Muntik na!', 'Ang kulit!', 'Sige pa!', 'Halos na!']
-
-// Safe margins so it never hides behind the phone's browser bars.
 const PAD_X = 16
 const PAD_TOP = 80
 const PAD_BOTTOM = 28
 
+// Activity options (each detail step also allows a typed custom answer).
+const ACTIVITIES = [
+  { id: 'Coffee', emoji: '☕', q: 'Saan tayo kape?', options: ["Dunkin'", 'Corniche', 'Starbucks'] },
+  { id: 'Dinner', emoji: '🍽️', q: 'Saan tayo kakain?', options: ['Almina', 'Time Out'] },
+  { id: 'Late night drive', emoji: '🚗', q: 'Gaano katagal?', options: ['30 minutes', '1 oras', '3 oras'] },
+]
+
+function formatWhen(date, time) {
+  if (!date) return ''
+  try {
+    const d = new Date(`${date}T${time || '00:00'}`)
+    const opts = { weekday: 'long', month: 'long', day: 'numeric' }
+    const datePart = d.toLocaleDateString('en-US', opts)
+    const timePart = time ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
+    return timePart ? `${datePart}, ${timePart}` : datePart
+  } catch {
+    return `${date} ${time}`.trim()
+  }
+}
+
 export default function App() {
   const [dodges, setDodges] = useState(0)
-  const [stage, setStage] = useState('ask') // 'ask' | 'second'
+  const [stage, setStage] = useState('ask') // 'ask' | 'second' | 'plan'
+  const [planStep, setPlanStep] = useState('activity') // 'activity' | 'detail' | 'when'
+  const [activity, setActivity] = useState(null) // selected ACTIVITIES entry
+  const [place, setPlace] = useState('')
+  const [custom, setCustom] = useState('')
+  const [meetDate, setMeetDate] = useState('')
+  const [meetTime, setMeetTime] = useState('')
   const [result, setResult] = useState(null) // 'yes' | 'no' | null
   const [returning, setReturning] = useState(false)
-  const [noPos, setNoPos] = useState(null) // {left, top, rot} while running; null = home
+  const [savedDetail, setSavedDetail] = useState(null)
+  const [noPos, setNoPos] = useState(null)
+
   const submittingRef = useRef(false)
   const noRef = useRef(null)
   const dodgesRef = useRef(0)
@@ -28,31 +51,29 @@ export default function App() {
 
   const noClickable = dodges >= MAX_DODGES
   const noLabel = noClickable ? 'Hindi' : NO_TAUNTS[Math.min(dodges, NO_TAUNTS.length - 1)]
-
-  // Difficulty ramp: smaller + faster the longer she chases.
   const scale = Math.max(0.6, 1 - Math.min(dodges, MAX_DODGES) * 0.045)
   const moveDur = Math.max(90, 220 - Math.min(dodges, MAX_DODGES) * 16)
+  const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
     const prev = getSavedAnswer()
     if (prev === 'yes' || prev === 'no') {
       setResult(prev)
       setReturning(true)
+      setSavedDetail(getSavedDetail())
     }
     flushPending()
   }, [])
 
-  // Big leap to the OPPOSITE side of the screen each time = frantic chase.
+  /* ---------------- runaway NO button ---------------- */
   const dodge = useCallback(() => {
     if (dodgesRef.current >= MAX_DODGES) return
     const now = Date.now()
-    if (now - lastDodgeRef.current < 110) return // throttle rapid mousemove
+    if (now - lastDodgeRef.current < 110) return
     lastDodgeRef.current = now
 
     const next = dodgesRef.current + 1
-
     if (next >= MAX_DODGES) {
-      // Gives up: come back home (inline), fully clickable.
       posRef.current = null
       setNoPos(null)
     } else {
@@ -65,28 +86,23 @@ export default function App() {
       const maxL = Math.max(minL, vw - w - PAD_X)
       const minT = PAD_TOP
       const maxT = Math.max(minT, vh - h - PAD_BOTTOM)
-
       const cur = posRef.current
       const goLeft = !cur || cur.left > vw / 2
       const goUp = !cur || cur.top > vh / 2
-
       const left = goLeft
         ? minL + Math.random() * Math.max(0, vw * 0.42 - minL)
         : Math.min(maxL, vw * 0.55 + Math.random() * Math.max(0, maxL - vw * 0.55))
       const top = goUp
         ? minT + Math.random() * Math.max(0, vh * 0.45 - minT)
         : Math.min(maxT, vh * 0.55 + Math.random() * Math.max(0, maxT - vh * 0.55))
-
       const pos = { left, top, rot: Math.random() * 26 - 13 }
       posRef.current = pos
       setNoPos(pos)
     }
-
     dodgesRef.current = next
     setDodges(next)
   }, [])
 
-  // Desktop: it bolts when the cursor gets close (not just on hover).
   useEffect(() => {
     if (noClickable) return
     const onMove = (e) => {
@@ -101,7 +117,6 @@ export default function App() {
     return () => window.removeEventListener('mousemove', onMove)
   }, [noClickable, dodge])
 
-  // Keep a fleeing button inside the screen on rotate/resize.
   useEffect(() => {
     const onResize = () => {
       setNoPos((p) => {
@@ -124,8 +139,9 @@ export default function App() {
     }
   }, [])
 
+  /* ---------------- actions ---------------- */
   const fireConfetti = () => {
-    const end = Date.now() + 1200
+    const end = Date.now() + 1400
     const colors = ['#ff6b6b', '#ffd93d', '#ff8e53', '#ffffff']
     ;(function frame() {
       confetti({ particleCount: 4, angle: 60, spread: 70, origin: { x: 0 }, colors, shapes: ['circle'], scalar: 1.3 })
@@ -134,15 +150,46 @@ export default function App() {
     })()
   }
 
-  const submit = useCallback((answer) => {
+  // Oo tapped -> celebrate, then start planning the date.
+  const startPlanning = () => {
+    fireConfetti()
+    setStage('plan')
+    setPlanStep('activity')
+  }
+
+  const chooseActivity = (a) => {
+    setActivity(a)
+    setPlace('')
+    setCustom('')
+    setPlanStep('detail')
+  }
+
+  const choosePlace = (value) => {
+    setPlace(value)
+    setPlanStep('when')
+  }
+
+  const confirmPlan = () => {
     if (submittingRef.current) return
     submittingRef.current = true
-    if (answer === 'yes') fireConfetti()
-    setResult(answer)
-    saveResponse(answer)
-  }, [])
+    const payload = {
+      response: 'yes',
+      activity: activity?.id,
+      place,
+      meet_date: meetDate,
+      meet_time: meetTime,
+    }
+    setSavedDetail(payload)
+    setResult('yes')
+    saveResponse(payload)
+  }
 
-  const handleYes = () => submit('yes')
+  const submitNo = () => {
+    if (submittingRef.current) return
+    submittingRef.current = true
+    setResult('no')
+    saveResponse({ response: 'no' })
+  }
 
   const handleNo = () => {
     if (!noClickable) {
@@ -152,14 +199,14 @@ export default function App() {
     setStage('second')
   }
 
+  /* ---------------- UI ---------------- */
   return (
     <div className="min-h-full w-full bg-gradient-to-b from-amber-200 via-orange-300 to-rose-300 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-md">
-        {/* ---------- STAGE 1: the question + the chase ---------- */}
+        {/* ===== STAGE: ask + chase ===== */}
         {!result && stage === 'ask' && (
           <div className="text-center">
             <PhotoGrid />
-
             <h1 className="mt-7 text-3xl sm:text-4xl font-extrabold text-rose-900 leading-tight tracking-tight">
               Pwede ba tayong mag-spend ng time, kahit minsan?
             </h1>
@@ -167,12 +214,11 @@ export default function App() {
 
             <div className="mt-7 flex flex-col items-center gap-4">
               <button
-                onClick={handleYes}
+                onClick={startPlanning}
                 className="rounded-2xl bg-rose-600 px-14 py-3.5 text-lg font-bold text-white shadow-lg shadow-rose-600/30 transition-transform active:scale-95 hover:bg-rose-500 animate-[pulseSoft_1.6s_ease-in-out_infinite]"
               >
                 Oo
               </button>
-
               <button
                 ref={noRef}
                 onClick={handleNo}
@@ -203,7 +249,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Game HUD */}
             {dodges > 0 && !noClickable && (
               <p className="mt-5 text-rose-800/70 text-sm font-semibold">
                 Hulihin mo ang “Hindi”! 😜 ({dodges}/{MAX_DODGES})
@@ -217,22 +262,21 @@ export default function App() {
           </div>
         )}
 
-        {/* ---------- STAGE 2: gentle second chance ---------- */}
+        {/* ===== STAGE: gentle second chance ===== */}
         {!result && stage === 'second' && (
           <div className="text-center animate-[fadeIn_0.4s_ease]">
             <div className="text-5xl">🥺</div>
             <h2 className="mt-4 text-3xl font-extrabold text-rose-900">Aww, talaga?</h2>
             <p className="mt-2 text-rose-800/80">Isa pa ngang chance? 💛</p>
-
             <div className="mt-8 flex flex-col items-center gap-4">
               <button
-                onClick={handleYes}
+                onClick={startPlanning}
                 className="rounded-2xl bg-rose-600 px-12 py-4 text-lg font-bold text-white shadow-lg shadow-rose-600/30 transition-transform active:scale-95 hover:bg-rose-500"
               >
                 Sige, Oo na 💛
               </button>
               <button
-                onClick={() => submit('no')}
+                onClick={submitNo}
                 className="text-sm font-medium text-rose-800/60 underline underline-offset-4 hover:text-rose-800"
               >
                 Hindi muna ngayon
@@ -241,20 +285,121 @@ export default function App() {
           </div>
         )}
 
-        {/* ---------- RESULT: yes ---------- */}
+        {/* ===== STAGE: planning (after Oo) ===== */}
+        {!result && stage === 'plan' && (
+          <div className="text-center animate-[fadeIn_0.35s_ease]">
+            {/* step 1: activity */}
+            {planStep === 'activity' && (
+              <>
+                <h2 className="text-2xl font-extrabold text-rose-900">Yey! 💛 Anong gusto mo?</h2>
+                <p className="mt-1 text-rose-800/70 text-sm">Ikaw bahala, ha.</p>
+                <div className="mt-7 flex flex-col gap-3">
+                  {ACTIVITIES.map((a) => (
+                    <button
+                      key={a.id}
+                      onClick={() => chooseActivity(a)}
+                      className="rounded-2xl bg-white/85 px-6 py-4 text-lg font-bold text-rose-700 shadow-md transition-transform active:scale-95 hover:bg-white"
+                    >
+                      {a.emoji} {a.id}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* step 2: place / duration */}
+            {planStep === 'detail' && activity && (
+              <>
+                <button onClick={() => setPlanStep('activity')} className="text-sm text-rose-800/60 hover:text-rose-800">‹ Bumalik</button>
+                <h2 className="mt-2 text-2xl font-extrabold text-rose-900">{activity.emoji} {activity.q}</h2>
+                <div className="mt-6 flex flex-col gap-3">
+                  {activity.options.map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => choosePlace(opt)}
+                      className="rounded-2xl bg-white/85 px-6 py-3.5 text-lg font-semibold text-rose-700 shadow-md transition-transform active:scale-95 hover:bg-white"
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      value={custom}
+                      onChange={(e) => setCustom(e.target.value)}
+                      placeholder="Iba pa... (i-type mo)"
+                      className="flex-1 rounded-2xl border border-white/70 bg-white/70 px-4 py-3 text-rose-800 placeholder-rose-800/40 outline-none focus:bg-white"
+                    />
+                    <button
+                      onClick={() => choosePlace(custom.trim())}
+                      disabled={!custom.trim()}
+                      className="rounded-2xl bg-rose-600 px-5 py-3 font-bold text-white shadow-md transition active:scale-95 hover:bg-rose-500 disabled:opacity-40"
+                    >
+                      Sige
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* step 3: when */}
+            {planStep === 'when' && (
+              <>
+                <button onClick={() => setPlanStep('detail')} className="text-sm text-rose-800/60 hover:text-rose-800">‹ Bumalik</button>
+                <h2 className="mt-2 text-2xl font-extrabold text-rose-900">Kailan tayo? 🗓️</h2>
+                <p className="mt-1 text-rose-800/70 text-sm">{activity?.emoji} {activity?.id} · {place}</p>
+                <div className="mt-6 flex flex-col gap-3 text-left">
+                  <label className="text-sm font-semibold text-rose-800">Petsa
+                    <input
+                      type="date"
+                      min={today}
+                      value={meetDate}
+                      onChange={(e) => setMeetDate(e.target.value)}
+                      className="mt-1 w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-rose-800 outline-none focus:bg-white"
+                    />
+                  </label>
+                  <label className="text-sm font-semibold text-rose-800">Oras
+                    <input
+                      type="time"
+                      value={meetTime}
+                      onChange={(e) => setMeetTime(e.target.value)}
+                      className="mt-1 w-full rounded-2xl border border-white/70 bg-white/80 px-4 py-3 text-rose-800 outline-none focus:bg-white"
+                    />
+                  </label>
+                </div>
+                <button
+                  onClick={confirmPlan}
+                  disabled={!meetDate || !meetTime}
+                  className="mt-7 w-full rounded-2xl bg-rose-600 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-rose-600/30 transition active:scale-95 hover:bg-rose-500 disabled:opacity-40"
+                >
+                  Tara na! 💛
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ===== RESULT: yes ===== */}
         {result === 'yes' && (
           <div className="text-center animate-[fadeIn_0.4s_ease]">
             <div className="text-6xl">🎉</div>
             <h2 className="mt-4 text-3xl font-extrabold text-rose-900">
               {returning ? 'Oo pa rin pala! 💛' : 'Yey! Salamat 💛'}
             </h2>
-            <p className="mt-2 text-lg text-rose-800">
-              {returning ? 'Excited na ako, ha.' : 'Kitakits tayo, ha?'}
-            </p>
+            {savedDetail?.activity ? (
+              <div className="mt-4 rounded-2xl bg-white/60 p-5 text-rose-900 shadow-sm">
+                <p className="text-lg font-bold">
+                  {savedDetail.activity} · {savedDetail.place}
+                </p>
+                <p className="mt-1 text-rose-800">{formatWhen(savedDetail.meet_date, savedDetail.meet_time)}</p>
+              </div>
+            ) : (
+              <p className="mt-2 text-lg text-rose-800">Kitakits tayo, ha?</p>
+            )}
+            <p className="mt-4 text-rose-800/80">Excited na ako. See you! 💛</p>
           </div>
         )}
 
-        {/* ---------- RESULT: no (kind, zero guilt) ---------- */}
+        {/* ===== RESULT: no ===== */}
         {result === 'no' && (
           <div className="text-center animate-[fadeIn_0.4s_ease]">
             <div className="text-5xl">💛</div>
